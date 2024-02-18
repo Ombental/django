@@ -243,61 +243,6 @@ class AdminReadonlyField:
             self.form.label_suffix,
         )
 
-    def get_admin_url(self, remote_field, remote_obj):
-        url_name = "admin:%s_%s_change" % (
-            remote_field.model._meta.app_label,
-            remote_field.model._meta.model_name,
-        )
-        try:
-            url = reverse(
-                url_name,
-                args=[quote(remote_obj.pk)],
-                current_app=self.model_admin.admin_site.name,
-            )
-            return format_html('<a href="{}">{}</a>', url, remote_obj)
-        except NoReverseMatch:
-            return str(remote_obj)
-
-    def contents(self):
-        from django.contrib.admin.templatetags.admin_list import _boolean_icon
-
-        field, obj, model_admin = (
-            self.field["field"],
-            self.form.instance,
-            self.model_admin,
-        )
-        try:
-            f, attr, value = lookup_field(field, obj, model_admin)
-        except (AttributeError, ValueError, ObjectDoesNotExist):
-            result_repr = self.empty_value_display
-        else:
-            if field in self.form.fields:
-                widget = self.form[field].field.widget
-                # This isn't elegant but suffices for contrib.auth's
-                # ReadOnlyPasswordHashWidget.
-                if getattr(widget, "read_only", False):
-                    return widget.render(field, value)
-            if f is None:
-                if getattr(attr, "boolean", False):
-                    result_repr = _boolean_icon(value)
-                else:
-                    if hasattr(value, "__html__"):
-                        result_repr = value
-                    else:
-                        result_repr = linebreaksbr(value)
-            else:
-                if isinstance(f.remote_field, ManyToManyRel) and value is not None:
-                    result_repr = ", ".join(map(str, value.all()))
-                elif (
-                    isinstance(f.remote_field, (ForeignObjectRel, OneToOneField))
-                    and value is not None
-                ):
-                    result_repr = self.get_admin_url(f.remote_field, value)
-                else:
-                    result_repr = display_for_field(value, f, self.empty_value_display)
-                result_repr = linebreaksbr(result_repr)
-        return conditional_escape(result_repr)
-
 
 class InlineAdminFormSet:
     """

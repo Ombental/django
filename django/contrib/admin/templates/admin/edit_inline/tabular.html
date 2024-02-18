@@ -45,7 +45,7 @@
             {% for field in line %}
               <td class="{% if field.field.name %}field-{{ field.field.name }}{% endif %}{% if field.field.is_hidden %} hidden{% endif %}">
               {% if field.is_readonly %}
-                  <p>{{ field.contents }}</p>
+                  <p>{% readonly_field_contents field request.user %}</p>
               {% else %}
                   {{ field.field.errors.as_ul }}
                   {{ field.field }}

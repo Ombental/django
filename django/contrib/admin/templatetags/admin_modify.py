@@ -1,5 +1,18 @@
 import json
 
+from django.contrib.auth import get_permission_codename
+
+from django.db.models import ForeignObjectRel, ManyToManyRel, OneToOneField
+from django.template.defaultfilters import linebreaksbr
+
+from django.core.exceptions import ObjectDoesNotExist
+
+from django.utils.html import conditional_escape, format_html
+
+from django.contrib.admin.utils import display_for_field, lookup_field, quote
+
+from django.urls import NoReverseMatch, reverse
+
 from django import template
 from django.template.context import Context
 
@@ -148,3 +161,67 @@ def cell_count(inline_admin_form):
         # Delete checkbox
         count += 1
     return count
+
+
+def get_admin_url(admin_site_name, remote_field, remote_obj, user):
+    # TODO: currently not passing remote_obj to has_perm -
+    #  cuz need to handle modelbackend _Get_permission(if obj is passed it returns an empty set)
+    change_perm = f"{remote_field.model._meta.app_label}.{get_permission_codename('change', remote_field.model._meta)}"
+    if not user.has_perm(change_perm):
+        return str(remote_obj)
+    url_name = "admin:%s_%s_change" % (
+        remote_field.model._meta.app_label,
+        remote_field.model._meta.model_name,
+    )
+    try:
+        url = reverse(
+            url_name,
+            args=[quote(remote_obj.pk)],
+            current_app=admin_site_name
+        )
+        return format_html('<a href="{}">{}</a>', url, remote_obj)
+    except NoReverseMatch:
+        return str(remote_obj)
+
+
+@register.simple_tag
+def readonly_field_contents(target_field, user):
+    from django.contrib.admin.templatetags.admin_list import _boolean_icon
+
+    field, obj, model_admin = (
+        target_field["field"],
+        target_field.form.instance,
+        target_field.model_admin,
+    )
+    try:
+        f, attr, value = lookup_field(field, obj, model_admin)
+    except (AttributeError, ValueError, ObjectDoesNotExist):
+        result_repr = target_field.empty_value_display
+    else:
+        if field in target_field.form.fields:
+            widget = target_field.form[field].field.widget
+            # This isn't elegant but suffices for contrib.auth's
+            # ReadOnlyPasswordHashWidget.
+            if getattr(widget, "read_only", False):
+                return widget.render(field, value)
+        if f is None:
+            if getattr(attr, "boolean", False):
+                result_repr = _boolean_icon(value)
+            else:
+                if hasattr(value, "__html__"):
+                    result_repr = value
+                else:
+                    result_repr = linebreaksbr(value)
+        else:
+            if isinstance(f.remote_field, ManyToManyRel) and value is not None:
+                result_repr = ", ".join(map(str, value.all()))
+            elif (
+                isinstance(f.remote_field, (ForeignObjectRel, OneToOneField))
+                and value is not None
+            ):
+                result_repr = get_admin_url(model_admin.admin_site.name,
+                                            f.remote_field, value, user)
+            else:
+                result_repr = display_for_field(value, f, target_field.empty_value_display)
+            result_repr = linebreaksbr(result_repr)
+    return conditional_escape(result_repr)
