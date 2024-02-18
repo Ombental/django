@@ -1799,12 +1799,13 @@ class ModelAdmin(BaseModelAdmin):
         is lacking permissions and return to same page or redirect to the admin
         index page.
         """
-        msg = _(
-            "%(name)s with ID “%(key)s” doesn’t exist or you don't have permission "
-            "to access it.") % {
-                  "name": opts.verbose_name,
-                  "key": unquote(object_id),
-              }
+        object_name = request.GET.get('object_name', '')
+        prefix = f"{opts.verbose_name} {object_name}" if object_name else \
+            f"{opts.verbose_name} with ID “{unquote(object_id)}”"
+        msg = ("%(prefix)s doesn’t exist or you don't have permission to access it." %
+               {
+                   "prefix": prefix,
+               })
         self.message_user(request, msg, messages.WARNING)
         admin_url = reverse("admin:index", current_app=self.admin_site.name)
         referred_from = request.headers.get('referer', '')

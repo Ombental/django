@@ -254,7 +254,8 @@ class AdminReadonlyField:
                 args=[quote(remote_obj.pk)],
                 current_app=self.model_admin.admin_site.name,
             )
-            return format_html('<a href="{}">{}</a>', url, remote_obj)
+            return format_html('<a href="{}?object_name={}">{}</a>',
+                               url, remote_obj, remote_obj)
         except NoReverseMatch:
             return str(remote_obj)
 
