@@ -4,9 +4,7 @@ import json
 import re
 import warnings
 from functools import partial, update_wrapper
-from urllib.parse import parse_qsl
-from urllib.parse import quote as urlquote
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, quote as urlquote, urlparse
 
 from django import forms
 from django.conf import settings
@@ -66,8 +64,7 @@ from django.utils.text import (
     smart_split,
     unescape_string_literal,
 )
-from django.utils.translation import gettext as _
-from django.utils.translation import ngettext
+from django.utils.translation import gettext as _, ngettext
 from django.views.decorators.csrf import csrf_protect
 from django.views.generic import RedirectView
 
@@ -336,8 +333,8 @@ class BaseModelAdmin(metaclass=forms.MediaDefiningClass):
             isinstance(form_field.widget, SelectMultiple)
             and form_field.widget.allow_multiple_selected
             and not isinstance(
-                form_field.widget, (CheckboxSelectMultiple, AutocompleteSelectMultiple)
-            )
+            form_field.widget, (CheckboxSelectMultiple, AutocompleteSelectMultiple)
+        )
         ):
             msg = _(
                 "Hold down “Control”, or “Command” on a Mac, to select more than one."
@@ -746,7 +743,7 @@ class ModelAdmin(BaseModelAdmin):
                 wrap(
                     RedirectView.as_view(
                         pattern_name="%s:%s_%s_change"
-                        % ((self.admin_site.name,) + info)
+                                     % ((self.admin_site.name,) + info)
                     )
                 ),
             ),
@@ -1346,7 +1343,7 @@ class ModelAdmin(BaseModelAdmin):
                     has_editable_inline_admin_formsets
                 ),
                 "has_file_field": context["adminform"].form.is_multipart()
-                or any(
+                                  or any(
                     admin_formset.formset.is_multipart()
                     for admin_formset in context["inline_admin_formsets"]
                 ),
@@ -1798,15 +1795,20 @@ class ModelAdmin(BaseModelAdmin):
 
     def _get_obj_does_not_exist_redirect(self, request, opts, object_id):
         """
-        Create a message informing the user that the object doesn't exist
-        and return a redirect to the admin index page.
+        Create a message informing the user that the object doesn't exist or user
+        is lacking permissions and return to same page or redirect to the admin
+        index page.
         """
-        msg = _("%(name)s with ID “%(key)s” doesn’t exist. Perhaps it was deleted?") % {
-            "name": opts.verbose_name,
-            "key": unquote(object_id),
-        }
+        msg = _(
+            "%(name)s with ID “%(key)s” doesn’t exist or you don't have permission "
+            "to access it.") % {
+                  "name": opts.verbose_name,
+                  "key": unquote(object_id),
+              }
         self.message_user(request, msg, messages.WARNING)
-        url = reverse("admin:index", current_app=self.admin_site.name)
+        admin_url = reverse("admin:index", current_app=self.admin_site.name)
+        referred_from = request.headers.get('referer', '')
+        url = referred_from if admin_url in referred_from else admin_url
         return HttpResponseRedirect(url)
 
     @csrf_protect_m
@@ -2099,9 +2101,9 @@ class ModelAdmin(BaseModelAdmin):
                         "%(count)s %(name)s were changed successfully.",
                         changecount,
                     ) % {
-                        "count": changecount,
-                        "name": model_ngettext(self.opts, changecount),
-                    }
+                              "count": changecount,
+                              "name": model_ngettext(self.opts, changecount),
+                          }
                     self.message_user(request, msg, messages.SUCCESS)
 
                 return HttpResponseRedirect(request.get_full_path())
